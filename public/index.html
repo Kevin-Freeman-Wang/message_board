@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>留言板</title>
+  <style>
+    /* =========================================================
+       全局样式重置与基础设置
+       ========================================================= */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+      /* 渐变背景，营造高端质感 */
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+      color: #333;
+    }
+
+    /* =========================================================
+       主容器：居中、限宽、白底圆角卡片
+       ========================================================= */
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+    }
+
+    /* =========================================================
+       顶部标题区
+       ========================================================= */
+    .header {
+      padding: 32px 32px 24px;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: #fff;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .header p {
+      margin-top: 8px;
+      font-size: 14px;
+      opacity: 0.85;
+    }
+
+    /* =========================================================
+       留言输入区
+       ========================================================= */
+    .input-area {
+      padding: 24px 32px;
+      border-bottom: 1px solid #eee;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 14px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: inherit;
+      resize: vertical;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+
+    textarea:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    }
+
+    .input-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .char-count {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    .submit-btn {
+      padding: 10px 24px;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+    }
+
+    .submit-btn:active {
+      transform: translateY(0);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* =========================================================
+       留言列表区
+       ========================================================= */
+    .message-list {
+      padding: 16px 32px 32px;
+    }
+
+    .list-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #374151;
+    }
+
+    .empty-tip {
+      text-align: center;
+      padding: 40px 0;
+      color: #9ca3af;
+      font-size: 14px;
+    }
+
+    .message-item {
+      padding: 16px 18px;
+      background: #f9fafb;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      border-left: 4px solid #6366f1;
+      transition: background 0.2s;
+    }
+
+    .message-item:hover {
+      background: #f3f4f6;
+    }
+
+    .message-content {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #1f2937;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .message-time {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    /* 提示消息（成功/失败） */
+    .toast {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      padding: 12px 24px;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .toast.success {
+      background: #10b981;
+    }
+
+    .toast.error {
+      background: #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <!-- 顶部浮动提示框，提交留言后显示成功或失败 -->
+  <div id="toast" class="toast"></div>
+
+  <div class="container">
+    <!-- 标题区 -->
+    <div class="header">
+      <h1>💬 留言板</h1>
+      <p>留下你的想法，所有人都能看到</p>
+    </div>
+
+    <!-- 留言输入区 -->
+    <div class="input-area">
+      <textarea
+        id="contentInput"
+        placeholder="写下你想说的话..."
+        maxlength="500"
+      ></textarea>
+      <div class="input-footer">
+        <span class="char-count">
+          <span id="charCount">0</span> / 500
+        </span>
+        <button id="submitBtn" class="submit-btn">提交留言</button>
+      </div>
+    </div>
+
+    <!-- 留言列表区 -->
+    <div class="message-list">
+      <div class="list-title">全部留言</div>
+      <div id="messageList">
+        <!-- 留言项会通过 JavaScript 动态插入到这里 -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================
+    // 获取页面元素，后续会反复用到
+    // =========================================================
+    const contentInput = document.getElementById('contentInput');
+    const charCount = document.getElementById('charCount');
+    const submitBtn = document.getElementById('submitBtn');
+    const messageList = document.getElementById('messageList');
+    const toast = document.getElementById('toast');
+
+    // =========================================================
+    // 1. 实时统计输入字数
+    // =========================================================
+    // input 事件会在用户每次输入时触发
+    contentInput.addEventListener('input', () => {
+      charCount.textContent = contentInput.value.length;
+    });
+
+    // =========================================================
+    // 2. 显示提示消息（toast）
+    // =========================================================
+    // message: 提示文字；type: 'success' 或 'error'
+    function showToast(message, type = 'success') {
+      toast.textContent = message;
+      toast.className = 'toast ' + type + ' show';
+      // 2 秒后自动隐藏
+      setTimeout(() => {
+        toast.className = 'toast';
+      }, 2000);
+    }
+
+    // =========================================================
+    // 3. 格式化时间
+    // =========================================================
+    // 把 ISO 时间字符串（如 2026-10-09T06:30:00.000Z）
+    // 转成更友好的格式：2026-10-09 14:30
+    function formatTime(isoString) {
+      const date = new Date(isoString);
+      const pad = (n) => String(n).padStart(2, '0');
+      return (
+        date.getFullYear() +
+        '-' +
+        pad(date.getMonth() + 1) +
+        '-' +
+        pad(date.getDate()) +
+        ' ' +
+        pad(date.getHours()) +
+        ':' +
+        pad(date.getMinutes())
+      );
+    }
+
+    // =========================================================
+    // 4. 渲染留言列表
+    // =========================================================
+    // messages 是后端返回的留言数组
+    function renderMessages(messages) {
+      // 如果没有留言，显示空状态提示
+      if (messages.length === 0) {
+        messageList.innerHTML = '<div class="empty-tip">还没有留言，来发第一条吧 ✨</div>';
+        return;
+      }
+
+      // 把每条留言转成 HTML 字符串，再拼接到列表中
+      messageList.innerHTML = messages
+        .map((msg) => {
+          return `
+            <div class="message-item">
+              <div class="message-content"></div>
+              <div class="message-time">${formatTime(msg.created_at)}</div>
+            </div>
+          `;
+        })
+        .join('');
+
+      // 用 textContent 安全地写入内容，避免 XSS 攻击
+      // （如果直接拼接到上面的模板字符串里，用户输入 <script> 会被执行）
+      const items = messageList.querySelectorAll('.message-item');
+      messages.forEach((msg, index) => {
+        items[index].querySelector('.message-content').textContent = msg.content;
+      });
+    }
+
+    // =========================================================
+    // 5. 从后端加载所有留言
+    // =========================================================
+    async function loadMessages() {
+      try {
+        // 用相对路径请求后端接口（前后端同域，不需要写完整域名）
+        const response = await fetch('/api/messages');
+        const result = await response.json();
+
+        if (result.success) {
+          renderMessages(result.data);
+        } else {
+          showToast('加载留言失败', 'error');
+        }
+      } catch (err) {
+        console.error('请求出错：', err);
+        showToast('网络错误，请稍后重试', 'error');
+      }
+    }
+
+    // =========================================================
+    // 6. 提交新留言
+    // =========================================================
+    async function submitMessage() {
+      const content = contentInput.value.trim();
+
+      // 前端再做一次非空校验（后端也有，双重保险）
+      if (content.length === 0) {
+        showToast('留言内容不能为空', 'error');
+        return;
+      }
+
+      // 提交时禁用按钮，防止重复点击
+      submitBtn.disabled = true;
+      submitBtn.textContent = '提交中...';
+
+      try {
+        const response = await fetch('/api/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          // 把留言内容转成 JSON 字符串作为请求体
+          body: JSON.stringify({ content: content }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showToast('留言成功！');
+          // 清空输入框和字数统计
+          contentInput.value = '';
+          charCount.textContent = '0';
+          // 重新加载留言列表，显示最新数据
+          loadMessages();
+        } else {
+          showToast(result.message || '提交失败', 'error');
+        }
+      } catch (err) {
+        console.error('提交出错：', err);
+        showToast('网络错误，请稍后重试', 'error');
+      } finally {
+        // 无论成功失败，都恢复按钮状态
+        submitBtn.disabled = false;
+        submitBtn.textContent = '提交留言';
+      }
+    }
+
+    // =========================================================
+    // 7. 绑定事件
+    // =========================================================
+    // 点击提交按钮时调用 submitMessage
+    submitBtn.addEventListener('click', submitMessage);
+
+    // 在输入框里按 Ctrl/Cmd + Enter 也能提交
+    contentInput.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        submitMessage();
+      }
+    });
+
+    // =========================================================
+    // 8. 页面加载完成后，立即拉取留言列表
+    // =========================================================
+    loadMessages();
+  </script>
+</body>
+</html>
